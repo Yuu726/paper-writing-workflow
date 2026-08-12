@@ -4,7 +4,7 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { chromium } = require("playwright");
 
-const BASE_URL = "http://127.0.0.1:8765";
+const BASE_URL = process.env.BASE_URL || "http://127.0.0.1:8765";
 const ARTIFACTS = "/tmp/workflow-site-test";
 fs.mkdirSync(ARTIFACTS, { recursive: true });
 
