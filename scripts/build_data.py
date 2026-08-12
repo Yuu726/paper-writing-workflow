@@ -120,8 +120,29 @@ def build_payload(books: dict[str, dict[str, dict[str, str]]]) -> dict:
         }
         for sheet_index, (book, sheet, renderer) in enumerate(stage["sheets"], 1):
             cells = books[book][sheet]
+            case_number_by_col = {}
+            if renderer == "matrix":
+                project_cols = sorted(
+                    {
+                        CELL_RE.fullmatch(ref).group(1)
+                        for ref in cells
+                        if CELL_RE.fullmatch(ref) and CELL_RE.fullmatch(ref).group(1) != "A"
+                    },
+                    key=col_to_num,
+                )
+                case_number_by_col = {col: index for index, col in enumerate(project_cols, 1)}
             ordered = [
-                {"ref": ref, "value": cells[ref]}
+                {
+                    "ref": ref,
+                    "value": (
+                        f"参考案例 {case_number_by_col[CELL_RE.fullmatch(ref).group(1)]:02d}"
+                        if renderer == "matrix"
+                        and CELL_RE.fullmatch(ref)
+                        and CELL_RE.fullmatch(ref).group(2) == "1"
+                        and CELL_RE.fullmatch(ref).group(1) != "A"
+                        else cells[ref]
+                    ),
+                }
                 for ref in sorted(cells, key=cell_sort_key)
             ]
             total_cells += len(ordered)

@@ -16,6 +16,7 @@
   const progressBar = document.querySelector("#progress-bar");
   const toast = document.querySelector("#toast");
   const copyRegistry = new Map();
+  const sheetTargetsByName = new Map();
   let copySequence = 0;
   let toastTimer;
 
@@ -29,6 +30,22 @@
     <svg class="sheet-chevron" viewBox="0 0 24 24" aria-hidden="true">
       <path d="m7 10 5 5 5-5"></path>
     </svg>`;
+
+  const promptLinkTargets = new Map([
+    ["主图提示词", "主图提示词"],
+    ["优化图片提示词", "优化图片"],
+    ["优化图片", "优化图片"],
+    ["A子图提示词", "A子图提示词"],
+    ["B子图提示词", "B子图提示词"],
+    ["验证提示词", "验证提示词"],
+  ]);
+
+  data.stages.forEach((stage) => {
+    stage.sheets.forEach((sheet) => {
+      if (!sheetTargetsByName.has(sheet.name)) sheetTargetsByName.set(sheet.name, []);
+      sheetTargetsByName.get(sheet.name).push(sheet.id);
+    });
+  });
 
   function normalize(value) {
     return String(value || "").toLocaleLowerCase("zh-CN").replace(/\s+/g, " ").trim();
@@ -70,6 +87,37 @@
     return element;
   }
 
+  function linkedSheetId(name) {
+    const targets = sheetTargetsByName.get(name) || [];
+    return targets.length === 1 ? targets[0] : null;
+  }
+
+  function appendLinkedText(container, value) {
+    const linkableNames = [...promptLinkTargets.keys()]
+      .filter((name) => linkedSheetId(promptLinkTargets.get(name)) && value.includes(name))
+      .sort((a, b) => b.length - a.length);
+    if (!linkableNames.length) {
+      container.textContent = value;
+      return;
+    }
+    const matcher = new RegExp(`(${linkableNames.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "g");
+    value.split(matcher).forEach((part) => {
+      const targetId = linkedSheetId(promptLinkTargets.get(part));
+      if (!targetId) {
+        container.append(document.createTextNode(part));
+        return;
+      }
+      const link = document.createElement("a");
+      link.className = "prompt-jump-link";
+      link.href = `#${targetId}`;
+      link.title = `跳转到“${part}”`;
+      const label = document.createElement("span");
+      label.textContent = part;
+      link.append(label);
+      container.append(link);
+    });
+  }
+
   function createCard(cell, label = "原始内容", options = {}) {
     const card = document.createElement("article");
     card.className = "content-card";
@@ -107,7 +155,7 @@
 
     const text = document.createElement("pre");
     text.className = "card-text";
-    text.textContent = cell.value;
+    appendLinkedText(text, cell.value);
 
     if (options.structural) {
       toolbar.append(text, button);
@@ -236,9 +284,10 @@
     const columns = groupBy(projectCells, (cell) => parseRef(cell.ref).col);
     columns.forEach((cells, col) => {
       const header = cells.find((cell) => parseRef(cell.ref).row === 1);
-      const title = header ? header.value.replace(/\s+/g, " ").trim() : `原表项目列 ${col}`;
+      const caseNumber = columns.size > 0 ? [...columns.keys()].indexOf(col) + 1 : 1;
+      const title = `参考案例 ${String(caseNumber).padStart(2, "0")}`;
       const contextCards = header
-        ? [createCard(header, "案例名称", { compact: true, structural: true })]
+        ? [createCard(header, "案例编号", { compact: true, structural: true })]
         : [];
       const cards = cells.filter((cell) => cell !== header).map((cell) => {
         const ref = parseRef(cell.ref);
@@ -247,7 +296,7 @@
       });
       fragment.append(createGroup(title, `参考案例列 ${col}`, cards, {
         contextCards,
-        outline: { sheet, index: col, label: `参考案例｜${title}` },
+        outline: { sheet, index: col, label: title },
       }));
     });
     return fragment;

@@ -30,6 +30,7 @@ function assertNoConsoleErrors(errors) {
   await page.waitForLoadState("networkidle");
 
   assert.equal(await page.title(), "论文写作工作流");
+  const browserData = await page.evaluate(() => window.WORKFLOW_DATA);
   assert.equal(await page.locator(".stage-section").count(), 6);
   assert.equal(await page.locator(".sheet").count(), 17);
   assert.equal(await page.locator(".content-card").count(), 313);
@@ -47,8 +48,33 @@ function assertNoConsoleErrors(errors) {
   assert.equal(await bodyStructure.locator(".source-context .structural-card").count() > 0, true);
   assert.equal(await bodyStructure.getByText("Abstract｜Abstract", { exact: true }).count(), 0);
 
+  // Reference-example header names are replaced by stable case numbers in the
+  // rendered page, navigation, search index, and public data payload.
+  for (const sheetId of ["stage-2-sheet-1", "stage-2-sheet-2"]) {
+    const expectedCaseLabels = Array.from({ length: 6 }, (_, index) =>
+      `参考案例 ${String(index + 1).padStart(2, "0")}`,
+    );
+    assert.deepEqual(
+      await page.locator(`[data-nav-sheet='${sheetId}'] .nav-outline-link`).allTextContents(),
+      expectedCaseLabels,
+      `Unexpected anonymized outline labels in ${sheetId}`,
+    );
+    assert.deepEqual(
+      await page.locator(`#${sheetId} .content-group > .group-heading > span`).allTextContents(),
+      expectedCaseLabels,
+      `Unexpected anonymized section labels in ${sheetId}`,
+    );
+    const matrixData = browserData.stages
+      .flatMap((stage) => stage.sheets)
+      .find((sheet) => sheet.id === sheetId);
+    assert.deepEqual(
+      matrixData.cells.filter((cell) => /^[B-G]1$/.test(cell.ref)).map((cell) => cell.value),
+      expectedCaseLabels,
+      `Public matrix headers were not anonymized in ${sheetId}`,
+    );
+  }
+
   // Every rendered card must preserve its source value byte-for-byte.
-  const browserData = await page.evaluate(() => window.WORKFLOW_DATA);
   for (const stage of browserData.stages) {
     for (const sheet of stage.sheets) {
       const renderedPairs = await page.locator(`#${sheet.id} .content-card`).evaluateAll((cards) =>
@@ -69,6 +95,33 @@ function assertNoConsoleErrors(errors) {
   const actual = await page.evaluate(() => navigator.clipboard.readText());
   assert.equal(actual, expected);
   assert.equal(await firstCard.locator(".copy-button span").textContent(), "已复制");
+
+  // Worksheet names mentioned inside instructions act as in-page links, while
+  // the copied value remains the untouched source-cell plain text.
+  const linkedInstructions = page.locator("#stage-5-sheet-1");
+  const expectedPromptLinks = new Map([
+    ["主图提示词", "#stage-5-sheet-2"],
+    ["优化图片", "#stage-5-sheet-3"],
+    ["A子图提示词", "#stage-5-sheet-4"],
+    ["B子图提示词", "#stage-5-sheet-5"],
+    ["验证提示词", "#stage-6-sheet-1"],
+  ]);
+  for (const [label, href] of expectedPromptLinks) {
+    const link = linkedInstructions.locator(`.prompt-jump-link[href='${href}']`).filter({ hasText: label }).first();
+    assert.ok(await link.isVisible(), `Missing prompt jump link: ${label} -> ${href}`);
+  }
+  const subfigureCard = linkedInstructions.locator(".content-card[data-cell-ref='B4']");
+  const subfigureSource = browserData.stages
+    .flatMap((stage) => stage.sheets)
+    .find((sheet) => sheet.id === "stage-5-sheet-1")
+    .cells.find((cell) => cell.ref === "B4").value;
+  await subfigureCard.locator(".copy-button").click();
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), subfigureSource);
+  await page.locator("#stage-5-sheet-4").evaluate((sheet) => { sheet.open = false; });
+  await subfigureCard.locator(".prompt-jump-link[href='#stage-5-sheet-4']").click();
+  await page.waitForTimeout(150);
+  assert.equal(await page.evaluate(() => location.hash), "#stage-5-sheet-4");
+  assert.notEqual(await page.locator("#stage-5-sheet-4").getAttribute("open"), null);
 
   const search = page.locator("#workflow-search");
   await search.fill("Nano Banana");
