@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="按阶段浏览、检索并一键复制论文写作工作流原文。" />
+    <title>论文写作工作流</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23102a43'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-size='34' fill='white'%3E%E7%A0%94%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#workflow-content">跳到正文</a>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar" aria-label="工作流导航">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">研</span>
+          <div>
+            <p class="brand-eyebrow">PAPER WORKFLOW</p>
+            <p class="brand-title">论文写作工作台</p>
+          </div>
+          <button class="icon-button sidebar-close" id="sidebar-close" aria-label="关闭导航">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+
+        <div class="workflow-progress" aria-label="阶段进度">
+          <div class="progress-copy">
+            <span>当前阶段</span>
+            <strong id="progress-label">01 / 06</strong>
+          </div>
+          <div class="progress-track"><span id="progress-bar"></span></div>
+        </div>
+
+        <nav class="stage-nav" id="stage-nav"></nav>
+
+        <div class="sidebar-foot">
+          <span id="sidebar-count">6 阶段 · 17 工作表</span>
+          <span>原文保留版</span>
+        </div>
+      </aside>
+
+      <div class="sidebar-scrim" id="sidebar-scrim" aria-hidden="true"></div>
+
+      <main class="main-panel" id="workflow-content">
+        <header class="topbar">
+          <button class="icon-button menu-button" id="menu-button" aria-label="打开导航">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+          </button>
+          <label class="search-box" for="workflow-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
+            <input id="workflow-search" type="search" placeholder="搜索提示词、字段或原表位置…" autocomplete="off" />
+            <kbd>⌘ K</kbd>
+          </label>
+          <button class="text-button" id="toggle-all" type="button">收起全部</button>
+        </header>
+
+        <div class="hero">
+          <div class="hero-kicker"><span></span>RESEARCH DESK · 研究写作</div>
+          <div class="hero-grid">
+            <div>
+              <h1>论文写作工作流</h1>
+              <p>从项目输入到投稿前自检。按阶段进入所需工作表，并一键复制每一段原始内容。</p>
+            </div>
+            <div class="hero-stats" id="hero-stats"></div>
+          </div>
+        </div>
+
+        <div class="search-status" id="search-status" role="status" aria-live="polite"></div>
+        <div class="workflow" id="workflow"></div>
+
+        <footer class="site-footer">
+          <span>论文写作工作流 · 原文保留版</span>
+          <a href="#workflow-content">返回顶部 ↑</a>
+        </footer>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="data/workflow-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
