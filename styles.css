@@ -11,7 +11,7 @@
   --teal-pale: #dcebe7;
   --ochre: #b57a2a;
   --navy: #102a43;
-  --sidebar: 284px;
+  --sidebar: 312px;
   --shadow: 0 16px 38px rgba(19, 42, 61, 0.08);
 }
 
@@ -240,6 +240,10 @@ summary:focus-visible {
 }
 
 .nav-sheet-link {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
   padding: 5px 5px;
   color: #8fa6af;
   font-size: 11px;
@@ -247,9 +251,93 @@ summary:focus-visible {
   text-decoration: none;
 }
 
+.nav-sheet-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-sheet-count {
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  padding-inline: 4px;
+  place-items: center;
+  border: 1px solid rgba(113, 199, 189, 0.18);
+  border-radius: 9px;
+  color: #668690;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 8px;
+}
+
+.nav-sheet.active .nav-sheet-count {
+  border-color: rgba(113, 199, 189, 0.38);
+  color: #71c7bd;
+}
+
 .nav-sheet-link:hover,
 .nav-sheet-link.active {
   color: #e8f7f4;
+}
+
+.nav-sheet {
+  min-width: 0;
+}
+
+.nav-outline {
+  display: none;
+  max-height: min(38vh, 330px);
+  margin: 2px 0 8px 4px;
+  padding: 3px 0 4px 10px;
+  overflow-y: auto;
+  border-left: 1px solid rgba(113, 199, 189, 0.22);
+  scrollbar-color: rgba(113, 199, 189, 0.32) transparent;
+  scrollbar-width: thin;
+}
+
+.nav-sheet.active .nav-outline {
+  display: grid;
+}
+
+.nav-outline-link {
+  position: relative;
+  display: block;
+  min-width: 0;
+  padding: 5px 8px 5px 25px;
+  overflow: hidden;
+  color: #79939d;
+  font-size: 10px;
+  line-height: 1.35;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: 150ms ease;
+}
+
+.nav-outline-link::before {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  color: #507680;
+  content: attr(data-outline-index);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 8px;
+  letter-spacing: 0.03em;
+}
+
+.nav-outline-link:hover,
+.nav-outline-link.active {
+  color: #e9f7f4;
+}
+
+.nav-outline-link.active::before {
+  color: #71c7bd;
+}
+
+[data-outline-label] {
+  scroll-margin-top: 92px;
 }
 
 .sidebar-foot {
@@ -880,7 +968,7 @@ summary:focus-visible {
 
 @media (max-width: 1020px) {
   :root {
-    --sidebar: 260px;
+    --sidebar: 280px;
   }
 
   .hero-grid {

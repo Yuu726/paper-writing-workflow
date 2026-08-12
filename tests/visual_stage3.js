@@ -13,6 +13,18 @@ async function capture(browser, viewport, name) {
   await page.waitForLoadState("networkidle");
   await page.locator("#stage-3-sheet-1").scrollIntoViewIfNeeded();
   await page.waitForTimeout(250);
+  await page.evaluate(() => {
+    document.querySelectorAll(".nav-stage").forEach((item) => item.classList.toggle("active", item.dataset.navStage === "3"));
+    document.querySelectorAll(".nav-sheet").forEach((item) => item.classList.toggle("active", item.dataset.navSheet === "stage-3-sheet-1"));
+  });
+  if (await page.locator("#menu-button").isVisible()) {
+    await page.locator("#menu-button").click();
+    await page.waitForTimeout(260);
+  }
+  const outline = page.locator(".nav-sheet[data-nav-sheet='stage-3-sheet-1'] .nav-outline-link");
+  assert.ok(await outline.count() >= 20, "Stage 3 / 正文 should expose detailed record navigation");
+  await page.locator(".nav-sheet[data-nav-sheet='stage-3-sheet-1']").scrollIntoViewIfNeeded();
+  assert.ok(await outline.first().isVisible(), "The current sheet outline should be visible in the sidebar");
   const dimensions = await page.evaluate(() => ({
     viewport: window.innerWidth,
     documentWidth: document.documentElement.scrollWidth,

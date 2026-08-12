@@ -54,6 +54,22 @@
     return parts.length > 1 ? parts.slice(1).join("｜") : title;
   }
 
+  function conciseLabel(value, fallback = "完整内容") {
+    const firstLine = String(value || "")
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^[#*\-=\s]+|[#*\-=\s]+$/g, "").replace(/\s+/g, " ").trim())
+      .find(Boolean);
+    if (!firstLine) return fallback;
+    return firstLine.length > 25 ? `${firstLine.slice(0, 25)}…` : firstLine;
+  }
+
+  function setOutlineTarget(element, sheet, index, label) {
+    element.id = `${sheet.id}-item-${index}`;
+    element.dataset.outlineLabel = label;
+    element.dataset.outlineSheet = sheet.id;
+    return element;
+  }
+
   function createCard(cell, label = "原始内容", options = {}) {
     const card = document.createElement("article");
     card.className = "content-card";
@@ -62,6 +78,9 @@
     if (cell.value.length > 1800) card.classList.add("long-text");
     card.dataset.search = normalize(`${cell.ref} ${label} ${cell.value}`);
     card.dataset.cellRef = cell.ref;
+    if (options.outline) {
+      setOutlineTarget(card, options.outline.sheet, options.outline.index, options.outline.label);
+    }
 
     const toolbar = document.createElement("div");
     toolbar.className = "card-toolbar";
@@ -111,6 +130,9 @@
     const group = document.createElement("section");
     group.className = "content-group";
     group.dataset.filterGroup = "true";
+    if (options.outline) {
+      setOutlineTarget(group, options.outline.sheet, options.outline.index, options.outline.label);
+    }
 
     const heading = document.createElement("h4");
     heading.className = "group-heading";
@@ -146,7 +168,14 @@
   }
 
   function renderSingle(sheet) {
-    return createList(sheet.cells.map((cell) => createCard(cell, "原表内容", { compact: cell.value.length < 90 && !cell.value.includes("\n") })));
+    return createList(sheet.cells.map((cell, index) => createCard(cell, "原表内容", {
+      compact: cell.value.length < 90 && !cell.value.includes("\n"),
+      outline: {
+        sheet,
+        index: index + 1,
+        label: sheet.cells.length === 1 ? "完整内容" : conciseLabel(cell.value, `内容 ${index + 1}`),
+      },
+    })));
   }
 
   function renderSteps(sheet) {
@@ -161,7 +190,10 @@
       const cards = cells
         .filter((cell) => cell !== aCell)
         .map((cell) => createCard(cell, "步骤内容"));
-      fragment.append(createGroup(title, `步骤 ${String(row).padStart(2, "0")}`, cards, { contextCards }));
+      fragment.append(createGroup(title, `步骤 ${String(row).padStart(2, "0")}`, cards, {
+        contextCards,
+        outline: { sheet, index: row, label: title },
+      }));
     });
     return fragment;
   }
@@ -178,7 +210,10 @@
       const cards = cells
         .filter((cell) => cell !== header)
         .map((cell) => createCard(cell, title));
-      fragment.append(createGroup(title, `提示词列 ${col}`, cards, { contextCards }));
+      fragment.append(createGroup(title, `提示词列 ${col}`, cards, {
+        contextCards,
+        outline: { sheet, index: col, label: title },
+      }));
     });
     return fragment;
   }
@@ -210,7 +245,10 @@
         const label = fields.get(ref.row) || `补充内容（第 ${ref.row} 行）`;
         return createCard(cell, label);
       });
-      fragment.append(createGroup(title, `参考案例列 ${col}`, cards, { contextCards }));
+      fragment.append(createGroup(title, `参考案例列 ${col}`, cards, {
+        contextCards,
+        outline: { sheet, index: col, label: `参考案例｜${title}` },
+      }));
     });
     return fragment;
   }
@@ -247,7 +285,11 @@
         const col = parseRef(cell.ref).col;
         return createCard(cell, headers.get(col) || `原表列 ${col}`);
       });
-      fragment.append(createGroup(lead || `原表第 ${row} 行`, `记录 ${String(row).padStart(2, "0")}`, cards, { contextCards }));
+      const recordTitle = lead || `原表第 ${row} 行`;
+      fragment.append(createGroup(recordTitle, `记录 ${String(row).padStart(2, "0")}`, cards, {
+        contextCards,
+        outline: { sheet, index: row, label: recordTitle },
+      }));
     });
     return fragment;
   }
@@ -356,11 +398,35 @@
       const sheets = document.createElement("div");
       sheets.className = "nav-sheets";
       stage.sheets.forEach((sheet) => {
+        const sheetItem = document.createElement("div");
+        sheetItem.className = "nav-sheet";
+        sheetItem.dataset.navSheet = sheet.id;
         const link = document.createElement("a");
         link.className = "nav-sheet-link";
         link.href = `#${sheet.id}`;
-        link.textContent = sheet.name;
-        sheets.append(link);
+        const outline = document.createElement("div");
+        outline.className = "nav-outline";
+        outline.setAttribute("aria-label", `${sheet.name}内部目录`);
+        const outlineTargets = [...document.querySelectorAll(`[data-outline-sheet='${sheet.id}']`)];
+        const sheetName = document.createElement("span");
+        sheetName.className = "nav-sheet-name";
+        sheetName.textContent = sheet.name;
+        const sheetCount = document.createElement("span");
+        sheetCount.className = "nav-sheet-count";
+        sheetCount.textContent = outlineTargets.length;
+        sheetCount.setAttribute("aria-label", `${outlineTargets.length} 个内部条目`);
+        link.append(sheetName, sheetCount);
+        outlineTargets.forEach((target, index) => {
+          const item = document.createElement("a");
+          item.className = "nav-outline-link";
+          item.href = `#${target.id}`;
+          item.textContent = target.dataset.outlineLabel;
+          item.title = target.dataset.outlineLabel;
+          item.dataset.outlineIndex = String(index + 1).padStart(2, "0");
+          outline.append(item);
+        });
+        sheetItem.append(link, outline);
+        sheets.append(sheetItem);
       });
       item.append(stageLink, sheets);
       stageNav.append(item);
@@ -480,9 +546,42 @@
   }
 
   function setActiveSheet(id) {
-    document.querySelectorAll(".nav-sheet-link").forEach((link) => {
-      link.classList.toggle("active", link.getAttribute("href") === `#${id}`);
+    const previous = document.querySelector(".nav-sheet.active")?.dataset.navSheet;
+    document.querySelectorAll(".nav-sheet").forEach((item) => {
+      const active = item.dataset.navSheet === id;
+      item.classList.toggle("active", active);
+      item.querySelector(".nav-sheet-link").classList.toggle("active", active);
     });
+    if (id && previous !== id) setActiveOutline(null, id);
+  }
+
+  function setActiveOutline(id, sheetId = null) {
+    document.querySelectorAll(".nav-outline-link").forEach((link) => {
+      link.classList.toggle("active", Boolean(id) && link.getAttribute("href") === `#${id}`);
+    });
+    if (sheetId) {
+      document.querySelectorAll(".nav-sheet").forEach((item) => {
+        item.classList.toggle("active", item.dataset.navSheet === sheetId);
+        item.querySelector(".nav-sheet-link").classList.toggle("active", item.dataset.navSheet === sheetId);
+      });
+    }
+  }
+
+  function revealOutlineTarget(target) {
+    const sheet = target.closest(".sheet");
+    if (sheet) sheet.open = true;
+  }
+
+  function outlineSheetId(target) {
+    return target.dataset.outlineSheet || target.closest(".sheet")?.id || null;
+  }
+
+  function updateOutlineFromHash() {
+    const hashTarget = location.hash && document.querySelector(location.hash);
+    if (hashTarget?.dataset.outlineLabel) {
+      revealOutlineTarget(hashTarget);
+      setActiveOutline(hashTarget.id, outlineSheetId(hashTarget));
+    }
   }
 
   function setupObservers() {
@@ -505,17 +604,29 @@
       { rootMargin: "-20% 0px -70% 0px", threshold: 0 },
     );
     document.querySelectorAll(".sheet").forEach((sheet) => sheetObserver.observe(sheet));
+
+    const outlineObserver = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top))[0];
+        if (visible) setActiveOutline(visible.target.id, outlineSheetId(visible.target));
+      },
+      { rootMargin: "-16% 0px -72% 0px", threshold: [0, 0.05, 0.2] },
+    );
+    document.querySelectorAll("[data-outline-label]").forEach((target) => outlineObserver.observe(target));
   }
 
   function closeNavigation() {
     document.body.classList.remove("nav-open");
   }
 
-  renderNavigation();
   renderStats();
   data.stages.forEach((stage) => workflow.append(createStage(stage)));
+  renderNavigation();
   setupObservers();
   setActiveStage(1);
+  updateOutlineFromHash();
   updateToggleLabel();
 
   document.addEventListener("click", async (event) => {
@@ -541,6 +652,10 @@
     if (anchor) {
       const target = document.querySelector(anchor.getAttribute("href"));
       if (target?.classList.contains("sheet")) target.open = true;
+      if (target?.dataset.outlineLabel) {
+        revealOutlineTarget(target);
+        setActiveOutline(target.id, outlineSheetId(target));
+      }
       closeNavigation();
     }
   });

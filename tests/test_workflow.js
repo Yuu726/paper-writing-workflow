@@ -36,6 +36,9 @@ function assertNoConsoleErrors(errors) {
   assert.equal(await page.locator(".copy-button").count(), 313);
   assert.equal(await page.locator(".nav-stage").count(), 6);
   assert.equal(await page.locator(".nav-sheet-link").count(), 17);
+  const outlineCount = await page.locator(".nav-outline-link").count();
+  assert.ok(outlineCount >= 60, `Expected a detailed third-level outline, found ${outlineCount} entries`);
+  assert.ok(await page.locator(".nav-outline-link[href='#stage-3-sheet-1-item-2']").isVisible() === false);
 
   // Spreadsheet scaffolding is visually subordinate to the actual writing content.
   const bodyStructure = page.locator("#stage-3-sheet-1");
@@ -62,6 +65,7 @@ function assertNoConsoleErrors(errors) {
   const firstCard = page.locator(".content-card").first();
   const expected = await firstCard.locator(".card-text").textContent();
   await firstCard.locator(".copy-button").click();
+  await firstCard.locator(".copy-button span").getByText("已复制", { exact: true }).waitFor();
   const actual = await page.evaluate(() => navigator.clipboard.readText());
   assert.equal(actual, expected);
   assert.equal(await firstCard.locator(".copy-button span").textContent(), "已复制");
@@ -92,6 +96,19 @@ function assertNoConsoleErrors(errors) {
   await page.waitForTimeout(100);
   assert.equal(await page.evaluate(() => location.hash), "#stage-6-sheet-2");
   assert.notEqual(await page.locator("#stage-6-sheet-2").getAttribute("open"), null);
+
+  await page.locator(".nav-stage-link[href='#stage-3']").click();
+  await page.waitForTimeout(300);
+  await page.locator(".nav-sheet-link[href='#stage-3-sheet-1']").click();
+  await page.waitForTimeout(100);
+  const recordLink = page.locator(".nav-outline-link[href='#stage-3-sheet-1-item-3']");
+  assert.ok(await recordLink.isVisible());
+  assert.equal(await page.locator(".nav-sheet.active .nav-outline").count(), 1);
+  await recordLink.click();
+  await page.waitForTimeout(150);
+  assert.equal(await page.evaluate(() => location.hash), "#stage-3-sheet-1-item-3");
+  assert.ok(await page.locator("#stage-3-sheet-1-item-3").isVisible());
+  assert.ok(await recordLink.evaluate((node) => node.classList.contains("active")));
 
   assertNoConsoleErrors(consoleErrors);
   await context.close();
